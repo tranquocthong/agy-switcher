@@ -1,5 +1,7 @@
 # agyw — Agency Profile Switcher
 
+[![npm](https://img.shields.io/npm/v/agyw)](https://www.npmjs.com/package/agyw)
+
 Switch between multiple Google accounts in the [Antigravity CLI](https://antigravity.google) (`agy`) without logging out and back in.
 
 Each profile stores its own private files and macOS Keychain auth token. Switching profiles swaps everything atomically — the next `agy` command runs as a different account.
