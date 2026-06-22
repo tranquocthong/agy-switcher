@@ -6,7 +6,10 @@ export async function addProfileCommand(name: string, opts: { clone?: string }):
     const manager = createProfileManager();
     await manager.addProfile(name, opts.clone);
     process.stdout.write(`Profile '${name}' created.\n`);
-    process.stdout.write('Run `agy auth login` to authenticate this profile.\n');
+
+    await manager.switch(name);
+    process.stdout.write(`Switched to '${name}'.\n`);
+    process.stdout.write('\nRun `agy auth login` to authenticate, then `agyw switch <previous>` when done.\n');
   } catch (err) {
     handleError(err);
   }

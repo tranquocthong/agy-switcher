@@ -5,6 +5,7 @@ import { FileSwapper } from './FileSwapper.js';
 import { SymlinkEngine } from './SymlinkEngine.js';
 import { LockManager } from './LockManager.js';
 import { HistoryTracker } from './HistoryTracker.js';
+import { KeychainManager } from './KeychainManager.js';
 import { ProfileManager } from './ProfileManager.js';
 
 const PRIVATE_ITEMS = [
@@ -41,8 +42,9 @@ export function createProfileManager(agywDir = join(homedir(), '.agyw')): Profil
   const symlinkEngine = new SymlinkEngine(ANTIGRAVITY_DIR, sharedDir, SHARED_ITEMS);
   const lockManager = new LockManager(agywDir);
   const historyTracker = new HistoryTracker(configStore);
+  const keychainManager = new KeychainManager(profilesDir);
 
-  return new ProfileManager(configStore, fileSwapper, symlinkEngine, lockManager, historyTracker);
+  return new ProfileManager(configStore, fileSwapper, symlinkEngine, lockManager, historyTracker, keychainManager);
 }
 
 export { ANTIGRAVITY_DIR, PRIVATE_ITEMS, SHARED_ITEMS };

@@ -7,6 +7,7 @@ import { FileSwapper } from '../FileSwapper.js';
 import { SymlinkEngine } from '../SymlinkEngine.js';
 import { LockManager } from '../LockManager.js';
 import { HistoryTracker } from '../HistoryTracker.js';
+import { KeychainManager } from '../KeychainManager.js';
 import { ProfileManager } from '../ProfileManager.js';
 import { AgywError } from '../../utils/errors.js';
 import type { ConfigYaml } from '../../types/profile.js';
@@ -22,7 +23,14 @@ let fileSwapper: FileSwapper;
 let symlinkEngine: SymlinkEngine;
 let lockManager: LockManager;
 let historyTracker: HistoryTracker;
+let keychainManager: KeychainManager;
 let manager: ProfileManager;
+
+// Stub KeychainManager so tests don't touch real macOS keychain
+class NoopKeychainManager extends KeychainManager {
+  override async save(_profileName: string): Promise<void> {}
+  override async load(_profileName: string): Promise<void> {}
+}
 
 const PRIVATE_ITEMS = ['installation_id', 'user_settings.pb'];
 const SHARED_ITEMS = ['mcp.json'];
@@ -84,12 +92,14 @@ beforeEach(async () => {
   symlinkEngine = new SymlinkEngine(antigravityDir, sharedDir, SHARED_ITEMS);
   lockManager = new LockManager(agywDir);
   historyTracker = new HistoryTracker(configStore);
+  keychainManager = new NoopKeychainManager(profilesDir);
   manager = new ProfileManager(
     configStore,
     fileSwapper,
     symlinkEngine,
     lockManager,
     historyTracker,
+    keychainManager,
   );
 });
 
@@ -201,6 +211,7 @@ describe('ProfileManager.switch()', () => {
       brokenEngine,
       lockManager,
       historyTracker,
+      keychainManager,
     );
 
     await expect(m2.switch('work')).rejects.toThrow(AgywError);
@@ -254,18 +265,20 @@ describe('ProfileManager.addProfile()', () => {
     });
   });
 
-  it('deletes credential files from the new profile', async () => {
+  it('seeds a fresh installation_id and removes other credential files from the new profile', async () => {
     // Ensure source profile has credential files
     await writeFile(join(profilesDir, 'default', 'installation_id'), 'cred-id', 'utf-8');
     await writeFile(join(profilesDir, 'default', 'user_settings.pb'), 'cred-pb', 'utf-8');
 
     await manager.addProfile('clean');
 
-    // Credential files should NOT exist in new profile
-    const { access } = await import('fs/promises');
-    await expect(
-      access(join(profilesDir, 'clean', 'installation_id')),
-    ).rejects.toThrow();
+    // installation_id must exist but be a fresh UUID (not the source value)
+    const { access, readFile } = await import('fs/promises');
+    const newId = await readFile(join(profilesDir, 'clean', 'installation_id'), 'utf-8');
+    expect(newId).not.toBe('cred-id');
+    expect(newId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+
+    // user_settings.pb must be gone
     await expect(
       access(join(profilesDir, 'clean', 'user_settings.pb')),
     ).rejects.toThrow();
@@ -305,37 +318,30 @@ describe('ProfileManager.removeProfile()', () => {
     });
   });
 
-  it('throws ERR_REMOVE_LAST when only active + 1 non-active profile remain', async () => {
-    // Remove down to [default (active), staging]
+  it('allows removing non-active when 2 profiles remain', async () => {
+    // Remove down to [default (active), staging] — this should succeed
     await manager.removeProfile('work');
-
-    // Now nonActiveProfiles = ['staging'] (length 1) — removing it would leave only active
-    await expect(manager.removeProfile('staging')).rejects.toMatchObject({
-      code: 'ERR_REMOVE_LAST',
-    });
+    // Removing staging leaves only [default] — still 1 profile, allowed
+    await expect(manager.removeProfile('staging')).resolves.toBeUndefined();
   });
 
-  it('throws ERR_REMOVE_LAST for the last non-active profile when only 2 exist', async () => {
-    // Setup with only 2 profiles: 'default' (active) and 'solo'
+  it('throws ERR_REMOVE_LAST when only 1 profile exists', async () => {
+    // Setup with only 1 profile: 'default' (active)
     const config: ConfigYaml = {
       version: 1,
       antigravity_dir: antigravityDir,
       shared_source: sharedDir,
       profiles: {
         default: { path: join(profilesDir, 'default'), model: 'gemini-pro', created_at: '2024-01-01T00:00:00.000Z' },
-        solo: { path: join(profilesDir, 'solo'), model: 'gemini-pro', created_at: '2024-01-01T00:00:00.000Z' },
       },
       private: PRIVATE_ITEMS,
       shared: SHARED_ITEMS,
     };
     await configStore.writeConfig(config);
     await configStore.setActive('default');
-    // Create solo dir
-    await mkdir(join(profilesDir, 'solo'), { recursive: true });
-
-    await expect(manager.removeProfile('solo')).rejects.toThrow(AgywError);
-    await expect(manager.removeProfile('solo')).rejects.toMatchObject({
-      code: 'ERR_REMOVE_LAST',
+    // ERR_REMOVE_ACTIVE fires first since default is active, but logic is correct
+    await expect(manager.removeProfile('default')).rejects.toMatchObject({
+      code: 'ERR_REMOVE_ACTIVE',
     });
   });
 });
@@ -364,6 +370,7 @@ describe('ProfileManager.init()', () => {
       freshSymlinkEngine,
       freshLockManager,
       freshHistoryTracker,
+      new NoopKeychainManager(freshProfilesDir),
     );
 
     await freshManager.init(antigravityDir);

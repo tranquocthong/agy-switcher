@@ -34,9 +34,8 @@ run.action((name: string, _opts: unknown, cmd: Command) => {
   runCommand(name, extra);
 });
 
-const profile = program.command('profile').description('Manage profiles');
-profile.command('add <name>').description('Add a new profile').option('--clone <source>', 'Clone from source profile').action(addProfileCommand);
-profile.command('list').description('List all profiles').action(listProfilesCommand);
-profile.command('remove <name>').description('Remove a profile').action(removeProfileCommand);
+program.command('add <name>').description('Add a new profile').option('--clone <source>', 'Clone from source profile').action(addProfileCommand);
+program.command('list').description('List all profiles').action(listProfilesCommand);
+program.command('remove <name>').description('Remove a profile').action(removeProfileCommand);
 
 program.parse();

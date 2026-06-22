@@ -1,10 +1,12 @@
-import { access, mkdir, cp, rm, rename, lstat } from 'fs/promises';
+import { access, mkdir, cp, rm, rename, lstat, writeFile } from 'fs/promises';
 import { join } from 'path';
+import { randomUUID } from 'crypto';
 import type { ConfigStore } from './ConfigStore.js';
 import type { FileSwapper } from './FileSwapper.js';
 import type { SymlinkEngine } from './SymlinkEngine.js';
 import type { LockManager } from './LockManager.js';
 import type { HistoryTracker } from './HistoryTracker.js';
+import type { KeychainManager } from './KeychainManager.js';
 import { AgywError } from '../utils/errors.js';
 
 const CREDENTIAL_FILES = ['installation_id', 'user_settings.pb'];
@@ -16,6 +18,7 @@ export class ProfileManager {
     private symlinkEngine: SymlinkEngine,
     private lockManager: LockManager,
     private historyTracker: HistoryTracker,
+    private keychainManager: KeychainManager,
   ) {}
 
   private get profilesDir(): string {
@@ -30,8 +33,10 @@ export class ProfileManager {
       const active = await this.configStore.getActive();
       if (resolved === active.profile) return;
 
+      await this.keychainManager.save(active.profile);
       await this.fileSwapper.save(active.profile);
       await this.fileSwapper.load(resolved);
+      await this.keychainManager.load(resolved);
       await this.symlinkEngine.repair();
       await this.configStore.setActive(resolved);
       await this.historyTracker.record(process.cwd(), resolved);
@@ -139,6 +144,10 @@ export class ProfileManager {
       await rm(join(destDir, cred), { force: true });
     }
 
+    // Seed a fresh installation_id so agy treats this as a new device and
+    // prompts for login instead of silently reusing an existing keychain entry.
+    await writeFile(join(destDir, 'installation_id'), randomUUID(), 'utf-8');
+
     config.profiles[name] = {
       path: destDir,
       model: sourceEntry.model,
@@ -160,8 +169,7 @@ export class ProfileManager {
       throw new AgywError('ERR_REMOVE_ACTIVE');
     }
 
-    const nonActiveProfiles = Object.keys(config.profiles).filter(p => p !== active.profile);
-    if (nonActiveProfiles.length <= 1) {
+    if (Object.keys(config.profiles).length <= 1) {
       throw new AgywError('ERR_REMOVE_LAST');
     }
 

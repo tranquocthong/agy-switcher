@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readdir, stat } from 'fs/promises';
+import { copyFile, mkdir, readdir, rm, stat } from 'fs/promises';
 import { dirname, join } from 'path';
 
 export class FileSwapper {
@@ -12,7 +12,7 @@ export class FileSwapper {
     for (const item of this.privateItems) {
       const src = join(this.antigravityDir, item);
       const dest = join(this.profilesDir, profileName, item);
-      await this.copyItem(src, dest);
+      await this.copyIfExists(src, dest);
     }
   }
 
@@ -20,16 +20,33 @@ export class FileSwapper {
     for (const item of this.privateItems) {
       const src = join(this.profilesDir, profileName, item);
       const dest = join(this.antigravityDir, item);
-      await this.copyItem(src, dest);
+      await this.loadItem(src, dest);
     }
   }
 
-  private async copyItem(src: string, dest: string): Promise<void> {
+  private async copyIfExists(src: string, dest: string): Promise<void> {
     let srcStat;
     try {
       srcStat = await stat(src);
     } catch {
-      // Source doesn't exist — silently skip
+      return;
+    }
+
+    if (srcStat.isDirectory()) {
+      await this.copyDir(src, dest);
+    } else {
+      await mkdir(dirname(dest), { recursive: true });
+      await copyFile(src, dest);
+    }
+  }
+
+  private async loadItem(src: string, dest: string): Promise<void> {
+    let srcStat;
+    try {
+      srcStat = await stat(src);
+    } catch {
+      // Profile doesn't have this item — clear it from antigravity dir so the new profile starts clean
+      await rm(dest, { force: true, recursive: true });
       return;
     }
 

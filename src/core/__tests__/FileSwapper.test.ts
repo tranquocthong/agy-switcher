@@ -90,7 +90,7 @@ describe('FileSwapper.load()', () => {
     );
   });
 
-  it('never deletes files in antigravityDir during load', async () => {
+  it('does not touch files in antigravityDir that are not in privateItems', async () => {
     // Pre-existing file in working dir that is NOT in privateItems
     const existingFile = join(antigravityDir, 'should_remain.txt');
     await writeFile(existingFile, 'keep-me', 'utf-8');
@@ -106,6 +106,26 @@ describe('FileSwapper.load()', () => {
     // should_remain.txt must still be there
     await expect(access(existingFile)).resolves.toBeUndefined();
     expect(await readFile(existingFile, 'utf-8')).toBe('keep-me');
+  });
+
+  it('removes a privateItems file from antigravityDir when the profile does not have it', async () => {
+    // Simulate switching to a fresh profile that has no credentials
+    await writeFile(join(antigravityDir, 'installation_id'), 'old-cred', 'utf-8');
+    await writeFile(join(antigravityDir, 'user_settings.pb'), 'old-settings', 'utf-8');
+
+    // New profile dir exists but credential files were deleted (as addProfile does)
+    const profileDir = join(profilesDir, 'fresh');
+    await mkdir(profileDir, { recursive: true });
+
+    const swapper = new FileSwapper(antigravityDir, profilesDir, [
+      'installation_id',
+      'user_settings.pb',
+    ]);
+    await swapper.load('fresh');
+
+    // Credential files must be gone from antigravityDir so agy starts unauthenticated
+    await expect(access(join(antigravityDir, 'installation_id'))).rejects.toThrow();
+    await expect(access(join(antigravityDir, 'user_settings.pb'))).rejects.toThrow();
   });
 });
 
