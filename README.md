@@ -27,7 +27,6 @@ agyw switch <name>     # Switch active profile (prefix matching: "agyw switch w"
 agyw list              # List all profiles
 agyw remove <name>     # Remove a profile
 agyw status            # Show active profile and symlink health
-agyw sync              # Save current state to active profile without switching
 agyw run <name>        # Switch profile and launch agy in one command
 agyw doctor            # Diagnose symlink and config issues
 ```
