@@ -4,8 +4,11 @@
   "description": "Agency Profile Switcher for agy (Google Antigravity CLI)",
   "type": "module",
   "bin": {
-    "agyw": "./dist/cli/index.js"
+    "agyw": "dist/cli/index.js"
   },
+  "files": [
+    "dist/"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/cli/index.ts",
