@@ -5,7 +5,6 @@ import { switchCommand } from '../commands/switch.js';
 import { runCommand } from '../commands/run.js';
 import { statusCommand } from '../commands/status.js';
 import { doctorCommand } from '../commands/doctor.js';
-import { syncCommand } from '../commands/sync.js';
 import { addProfileCommand } from '../commands/profile/add.js';
 import { listProfilesCommand } from '../commands/profile/list.js';
 import { removeProfileCommand } from '../commands/profile/remove.js';
@@ -24,8 +23,6 @@ program.command('switch <name>').description('Switch to profile (supports prefix
 program.command('status').description('Show active profile and symlink health').action(statusCommand);
 
 program.command('doctor').description('Diagnose profile and symlink issues').action(doctorCommand);
-
-program.command('sync').description('Save current private files to active profile (no switch)').action(syncCommand);
 
 const run = program.command('run <name>').description('Switch profile and spawn agy');
 run.allowUnknownOption(true);
