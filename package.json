@@ -29,7 +29,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tranquocthong/agy-switcher.git"
+    "url": "git+https://github.com/tranquocthong/agy-switcher.git"
   },
   "dependencies": {
     "commander": "^12.1.0",
