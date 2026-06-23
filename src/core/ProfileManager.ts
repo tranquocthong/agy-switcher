@@ -9,7 +9,7 @@ import type { HistoryTracker } from './HistoryTracker.js';
 import type { KeychainManager } from './KeychainManager.js';
 import { AgywError } from '../utils/errors.js';
 
-const CREDENTIAL_FILES = ['installation_id', 'user_settings.pb'];
+const CREDENTIAL_FILES = ['installation_id', 'user_settings.pb', 'keychain.token', 'antigravity-oauth-token'];
 
 export class ProfileManager {
   constructor(

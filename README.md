@@ -44,9 +44,9 @@ agyw switch default    # Switch back — restores your personal account automati
 
 ## How it works
 
-- **Private files** (`installation_id`, `settings.json`, `updater`, etc.) are copied per-profile into `~/.agyw/profiles/<name>/` and swapped into `~/.gemini/antigravity-cli/` on each switch.
+- **Private files** (`installation_id`, `antigravity-oauth-token`, `settings.json`, `updater`, etc.) are copied per-profile into `~/.agyw/profiles/<name>/` and swapped into `~/.gemini/antigravity-cli/` on each switch.
 - **Shared files** (`conversations/`, `skills/`, `hooks/`, etc.) are symlinked to a common `~/.agyw/shared/` directory so all profiles share the same history and config.
-- **Auth tokens** are saved and restored from the macOS Keychain so each profile stays logged in to its own Google account.
+- **Auth tokens** are saved and restored from both the macOS Keychain and the private `antigravity-oauth-token` file, ensuring each profile stays logged in to its own Google account and new profiles start with a clean state.
 
 ## Requirements
 

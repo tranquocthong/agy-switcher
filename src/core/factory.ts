@@ -17,6 +17,7 @@ const PRIVATE_ITEMS = [
   'cli.log',
   'updater',
   'antigravity_state.pbtxt',
+  'antigravity-oauth-token',
 ];
 
 const SHARED_ITEMS = [
