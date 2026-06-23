@@ -9,12 +9,16 @@ import { addProfileCommand } from '../commands/profile/add.js';
 import { listProfilesCommand } from '../commands/profile/list.js';
 import { removeProfileCommand } from '../commands/profile/remove.js';
 
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const pkg = require('../../package.json');
+
 const program = new Command();
 
 program
   .name('agyw')
   .description('Agency Profile Switcher for agy (Google Antigravity CLI)')
-  .version('0.1.0');
+  .version(pkg.version);
 
 program.command('init').description('Initialize agyw from existing ~/.gemini/antigravity-cli/').action(initCommand);
 
