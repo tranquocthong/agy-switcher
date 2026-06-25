@@ -5,9 +5,11 @@ import { FileSwapper } from './FileSwapper.js';
 import { SymlinkEngine } from './SymlinkEngine.js';
 import { LockManager } from './LockManager.js';
 import { HistoryTracker } from './HistoryTracker.js';
-import { KeychainManager } from './KeychainManager.js';
+import { MacOSKeychainStore } from './KeychainManager.js';
+import { NoOpCredentialStore } from './NoOpCredentialStore.js';
 import { ProcessGuard } from './ProcessGuard.js';
 import { ProfileManager } from './ProfileManager.js';
+import type { CredentialStore } from './CredentialStore.js';
 
 const PRIVATE_ITEMS = [
   'installation_id',
@@ -44,10 +46,13 @@ export function createProfileManager(agywDir = join(homedir(), '.agyw')): Profil
   const symlinkEngine = new SymlinkEngine(ANTIGRAVITY_DIR, sharedDir, SHARED_ITEMS);
   const lockManager = new LockManager(agywDir);
   const historyTracker = new HistoryTracker(configStore);
-  const keychainManager = new KeychainManager(profilesDir);
+  const credentialStore: CredentialStore =
+    process.platform === 'darwin'
+      ? new MacOSKeychainStore(profilesDir)
+      : new NoOpCredentialStore();
   const processGuard = new ProcessGuard();
 
-  return new ProfileManager(configStore, fileSwapper, symlinkEngine, lockManager, historyTracker, keychainManager, processGuard);
+  return new ProfileManager(configStore, fileSwapper, symlinkEngine, lockManager, historyTracker, credentialStore, processGuard);
 }
 
 export { ANTIGRAVITY_DIR, PRIVATE_ITEMS, SHARED_ITEMS };

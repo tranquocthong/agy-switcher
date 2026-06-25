@@ -5,13 +5,37 @@ import { AgywError } from '../../utils/errors.js';
 const guardWith = (psOutput: string) => new ProcessGuard(async () => psOutput);
 
 describe('ProcessGuard.findRunning()', () => {
-  it('detects the Antigravity IDE language_server daemon', async () => {
-    const ps = `
-  31354 /Applications/Antigravity.app/Contents/Resources/bin/language_server --standalone --override_ide_name antigravity
-`;
-    const found = await guardWith(ps).findRunning();
-    expect(found).toHaveLength(1);
-    expect(found[0]).toMatchObject({ pid: 31354, label: 'Antigravity IDE (language_server)' });
+  describe('on macOS', () => {
+    const origPlatform = process.platform;
+    beforeAll(() => Object.defineProperty(process, 'platform', { value: 'darwin' }));
+    afterAll(() => Object.defineProperty(process, 'platform', { value: origPlatform }));
+
+    it('detects the Antigravity IDE language_server daemon', async () => {
+      const ps = `
+    31354 /Applications/Antigravity.app/Contents/Resources/bin/language_server --standalone --override_ide_name antigravity
+  `;
+      const found = await guardWith(ps).findRunning();
+      expect(found).toHaveLength(1);
+      expect(found[0]).toMatchObject({ pid: 31354, label: 'Antigravity IDE (language_server)' });
+    });
+  });
+
+  describe('on linux', () => {
+    const origPlatform = process.platform;
+    beforeAll(() => Object.defineProperty(process, 'platform', { value: 'linux' }));
+    afterAll(() => Object.defineProperty(process, 'platform', { value: origPlatform }));
+
+    it('does not flag Antigravity IDE process (no IDE on Linux)', async () => {
+      const ps = `31354 /Applications/Antigravity.app/Contents/Resources/bin/language_server`;
+      const found = await guardWith(ps).findRunning();
+      expect(found).toHaveLength(0);
+    });
+
+    it('still detects agy CLI on Linux', async () => {
+      const ps = `5678 /home/user/.local/bin/agy chat`;
+      const found = await guardWith(ps).findRunning();
+      expect(found).toEqual([{ pid: 5678, label: 'agy CLI' }]);
+    });
   });
 
   it('detects a running agy CLI', async () => {

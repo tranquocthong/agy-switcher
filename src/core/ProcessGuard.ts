@@ -10,12 +10,14 @@ export interface RunningProcess {
 }
 
 /**
- * Detects Antigravity processes that hold the OAuth credentials in memory and
- * write them back to the shared macOS keychain slot (`gemini`/`antigravity`).
+ * Detects Antigravity processes that hold OAuth credentials in memory.
  *
- * If such a process is alive during a switch, it reverts the keychain to its own
- * account and cross-contaminates profiles (see the "all profiles collapse to one
- * account" bug). agyw cannot swap credentials safely while it runs.
+ * macOS: checks for Antigravity IDE (language_server) and the agy CLI.
+ * Linux: checks for the agy CLI only (no IDE on Linux).
+ *
+ * If such a process is alive during a switch, it reverts the keychain/token
+ * to its own account and cross-contaminates profiles. agyw cannot swap
+ * credentials safely while it runs.
  */
 export class ProcessGuard {
   // `listProcesses` is injectable so tests don't shell out to the real `ps`.
@@ -42,8 +44,9 @@ export class ProcessGuard {
       const cmd = match[2];
       if (pid === process.pid) continue;
 
-      // Antigravity IDE auth daemon — the persistent token refresher.
-      if (cmd.includes('Antigravity.app') && cmd.includes('language_server')) {
+      // Antigravity IDE auth daemon — macOS only (no IDE on Linux)
+      if (process.platform === 'darwin' &&
+          cmd.includes('Antigravity.app') && cmd.includes('language_server')) {
         found.push({ pid, label: 'Antigravity IDE (language_server)' });
         continue;
       }

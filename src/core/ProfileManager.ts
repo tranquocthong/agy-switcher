@@ -6,7 +6,7 @@ import type { FileSwapper } from './FileSwapper.js';
 import type { SymlinkEngine } from './SymlinkEngine.js';
 import type { LockManager } from './LockManager.js';
 import type { HistoryTracker } from './HistoryTracker.js';
-import type { KeychainManager } from './KeychainManager.js';
+import type { CredentialStore } from './CredentialStore.js';
 import type { ProcessGuard } from './ProcessGuard.js';
 import { AgywError } from '../utils/errors.js';
 
@@ -19,7 +19,7 @@ export class ProfileManager {
     private symlinkEngine: SymlinkEngine,
     private lockManager: LockManager,
     private historyTracker: HistoryTracker,
-    private keychainManager: KeychainManager,
+    private keychainManager: CredentialStore,
     private processGuard?: ProcessGuard,
   ) {}
 

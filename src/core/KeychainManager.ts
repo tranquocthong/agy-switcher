@@ -2,6 +2,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { writeFile, readFile, chmod } from 'fs/promises';
 import { join } from 'path';
+import type { CredentialStore } from './CredentialStore.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -9,7 +10,7 @@ const SERVICE = 'gemini';
 const ACCOUNT = 'antigravity';
 const TOKEN_FILE = 'keychain.token';
 
-export class KeychainManager {
+export class MacOSKeychainStore implements CredentialStore {
   constructor(private profilesDir: string) {}
 
   async save(profileName: string): Promise<void> {
@@ -50,3 +51,6 @@ export class KeychainManager {
     }
   }
 }
+
+// Backwards-compat alias — existing tests import KeychainManager by name
+export { MacOSKeychainStore as KeychainManager };

@@ -4,9 +4,7 @@
 
 Switch between multiple Google accounts in the [Antigravity CLI](https://antigravity.google) (`agy`) without logging out and back in.
 
-Each profile stores its own private files and macOS Keychain auth token. Switching profiles swaps everything atomically — the next `agy` command runs as a different account.
-
-> macOS only. Requires `agy` to be installed and initialized.
+Each profile stores its own private files and OAuth credentials. Switching profiles swaps everything atomically — the next `agy` command runs as a different account.
 
 ## Install
 
@@ -61,6 +59,32 @@ sessions before switching.
 
 ## Requirements
 
-- macOS
+- macOS or Linux (Ubuntu, Debian, Arch, Alpine/musl)
 - Node.js 18+
 - `agy` (Google Antigravity CLI) installed and initialized
+
+> **macOS** uses the native Keychain for credential isolation.  
+> **Linux** uses file-based credentials — run `agy` with
+> `GEMINI_FORCE_FILE_STORAGE=true` so tokens are written to file.
+
+## Linux Setup
+
+On Linux, `agy` stores OAuth tokens in `~/.gemini/antigravity-cli/antigravity-oauth-token`
+when `GEMINI_FORCE_FILE_STORAGE=true` is set. Without this, `agy` tries to use
+`libsecret`/GNOME Keyring, which fails in headless and Docker environments.
+
+Add to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
+
+```sh
+export GEMINI_FORCE_FILE_STORAGE=true
+```
+
+Then install `agy` and `agyw` normally:
+
+```sh
+curl -fsSL https://antigravity.google/cli/install.sh | bash
+npm install -g agyw
+agyw init
+```
+
+See [LINUX.md](./LINUX.md) for a detailed guide on headless auth and Docker usage.
