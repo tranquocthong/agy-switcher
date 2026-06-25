@@ -42,6 +42,17 @@ agy auth login         # Log in with your work Google account
 agyw switch default    # Switch back — restores your personal account automatically
 ```
 
+## Important: quit Antigravity before switching
+
+agyw swaps the OAuth credentials in the shared macOS Keychain slot. A running
+Antigravity IDE or `agy` process holds those credentials in memory and rewrites
+the keychain when its token refreshes — silently reverting your switch and, over
+time, collapsing every profile into a single account.
+
+To prevent this, `agyw switch` and `agyw run` **refuse to run while Antigravity
+or `agy` is alive**. Fully quit the Antigravity app (Cmd+Q) and close any `agy`
+sessions before switching.
+
 ## How it works
 
 - **Private files** (`installation_id`, `antigravity-oauth-token`, `settings.json`, `updater`, etc.) are copied per-profile into `~/.agyw/profiles/<name>/` and swapped into `~/.gemini/antigravity-cli/` on each switch.

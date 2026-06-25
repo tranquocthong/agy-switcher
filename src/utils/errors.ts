@@ -9,6 +9,7 @@ export type ErrorCode =
   | 'ERR_AGY_NOT_FOUND'
   | 'ERR_ANTIGRAVITY_NOT_INIT'
   | 'ERR_CONCURRENT_SWITCH'
+  | 'ERR_ANTIGRAVITY_RUNNING'
   | 'ERR_ENV_WRITE_FAILED';
 
 const ERROR_MESSAGES: Record<ErrorCode, string> = {
@@ -22,6 +23,7 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
   ERR_AGY_NOT_FOUND: "`agy` không tìm thấy trong PATH. Cài đặt `agy` và đảm bảo nó có trong PATH.",
   ERR_ANTIGRAVITY_NOT_INIT: "Thư mục `~/.gemini/antigravity-cli/` chưa tồn tại. Chạy `agy` lần đầu để khởi tạo.",
   ERR_CONCURRENT_SWITCH: "Đang có switch operation khác đang chạy. Thử lại sau. Lock tự xóa sau 30 giây.",
+  ERR_ANTIGRAVITY_RUNNING: "Antigravity/agy đang chạy ({detail}). Tiến trình này giữ token trong RAM và ghi đè ngược lại keychain, làm switch vô hiệu và lẫn token giữa các profile. Hãy thoát hẳn Antigravity (Cmd+Q) và đóng mọi tiến trình `agy`, rồi switch lại.",
   ERR_ENV_WRITE_FAILED: "Không thể ghi vào `~/.gemini/antigravity-cli/`: {detail}. Kiểm tra quyền truy cập thư mục.",
 };
 

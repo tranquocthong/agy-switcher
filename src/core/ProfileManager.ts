@@ -7,6 +7,7 @@ import type { SymlinkEngine } from './SymlinkEngine.js';
 import type { LockManager } from './LockManager.js';
 import type { HistoryTracker } from './HistoryTracker.js';
 import type { KeychainManager } from './KeychainManager.js';
+import type { ProcessGuard } from './ProcessGuard.js';
 import { AgywError } from '../utils/errors.js';
 
 const CREDENTIAL_FILES = ['installation_id', 'user_settings.pb', 'keychain.token', 'antigravity-oauth-token'];
@@ -19,6 +20,7 @@ export class ProfileManager {
     private lockManager: LockManager,
     private historyTracker: HistoryTracker,
     private keychainManager: KeychainManager,
+    private processGuard?: ProcessGuard,
   ) {}
 
   private get profilesDir(): string {
@@ -27,6 +29,10 @@ export class ProfileManager {
 
   // FR-004
   async switch(name: string): Promise<void> {
+    // Block switching while Antigravity/agy is alive — it would revert the
+    // keychain to its own account and contaminate profiles.
+    if (this.processGuard) await this.processGuard.assertNotRunning();
+
     await this.lockManager.acquire();
     try {
       const resolved = await this.resolveProfile(name);
