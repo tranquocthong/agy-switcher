@@ -42,20 +42,19 @@ agyw switch default    # Switch back — restores your personal account automati
 
 ## Important: quit Antigravity before switching
 
-agyw swaps the OAuth credentials in the shared macOS Keychain slot. A running
-Antigravity IDE or `agy` process holds those credentials in memory and rewrites
-the keychain when its token refreshes — silently reverting your switch and, over
-time, collapsing every profile into a single account.
+A running Antigravity IDE or `agy` process holds OAuth credentials in memory. If
+a token refresh happens mid-switch, it can write the old credentials back to disk
+and silently revert your switch.
 
 To prevent this, `agyw switch` and `agyw run` **refuse to run while Antigravity
-or `agy` is alive**. Fully quit the Antigravity app (Cmd+Q) and close any `agy`
-sessions before switching.
+or `agy` is alive**. On macOS, fully quit the Antigravity app (Cmd+Q) and close
+any `agy` sessions before switching. On Linux, close any active `agy` sessions.
 
 ## How it works
 
 - **Private files** (`installation_id`, `antigravity-oauth-token`, `settings.json`, `updater`, etc.) are copied per-profile into `~/.agyw/profiles/<name>/` and swapped into `~/.gemini/antigravity-cli/` on each switch.
 - **Shared files** (`conversations/`, `skills/`, `hooks/`, etc.) are symlinked to a common `~/.agyw/shared/` directory so all profiles share the same history and config.
-- **Auth tokens** are saved and restored from both the macOS Keychain and the private `antigravity-oauth-token` file, ensuring each profile stays logged in to its own Google account and new profiles start with a clean state.
+- **Auth tokens** are saved and restored per-profile: macOS uses the native Keychain plus the `antigravity-oauth-token` file; Linux uses the file only. New profiles start with a clean state so `agy auth login` prompts for a fresh account.
 
 ## Requirements
 
