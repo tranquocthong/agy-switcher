@@ -1,14 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { initCommand } from '../commands/init.js';
-import { switchCommand } from '../commands/switch.js';
-import { runCommand } from '../commands/run.js';
-import { execCommand, homesCommand } from '../commands/exec.js';
-import { statusCommand } from '../commands/status.js';
-import { doctorCommand } from '../commands/doctor.js';
-import { addProfileCommand } from '../commands/profile/add.js';
-import { listProfilesCommand } from '../commands/profile/list.js';
-import { removeProfileCommand } from '../commands/profile/remove.js';
+import { execCommand, listCommand, removeCommand, doctorCommand, removedCommand } from '../commands/exec.js';
 
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
@@ -18,39 +10,44 @@ const program = new Command();
 
 program
   .name('agyw')
-  .description('Agency Profile Switcher for agy (Google Antigravity CLI)')
+  .description('Run multiple Google accounts in agy (Google Antigravity CLI) side by side, one isolated HOME per profile')
   .version(pkg.version);
 
-program.command('init').description('Initialize agyw from existing ~/.gemini/antigravity-cli/').action(initCommand);
+for (const name of ['exec', 'run'] as const) {
+  const cmd = program
+    .command(`${name} <name>`)
+    .description(
+      name === 'exec'
+        ? 'Run agy in the isolated HOME of profile <name> (created on first use)'
+        : 'Alias of exec',
+    );
+  cmd.allowUnknownOption(true);
+  cmd.action((profile: string, _opts: unknown, c: Command) => {
+    execCommand(profile, c.args.slice(1));
+  });
+}
 
-program.command('switch <name>').description('Switch to profile (supports prefix matching)').action(switchCommand);
+program.command('list').alias('ls').description('List profiles and whether each is logged in').action(listCommand);
 
-program.command('status').description('Show active profile and symlink health').action(statusCommand);
+program
+  .command('remove <name>')
+  .alias('rm')
+  .description('Delete a profile (login and history included)')
+  .option('--yes', 'Confirm deletion')
+  .action(removeCommand);
 
 program
   .command('doctor')
-  .description('Diagnose profile and symlink issues')
-  .option('--fix', 'Repair broken/missing symlinks and resolve real-file conflicts')
+  .description('Check every profile is properly isolated')
+  .option('--fix', 'Re-create shared links and passthrough, drop a Library symlink')
   .action(doctorCommand);
 
-const run = program.command('run <name>').description('Switch profile and spawn agy');
-run.allowUnknownOption(true);
-run.action((name: string, _opts: unknown, cmd: Command) => {
-  const extra = cmd.args.slice(1);
-  runCommand(name, extra);
-});
-
-const exec = program
-  .command('exec <name>')
-  .description('Run agy in an isolated per-profile HOME (no global swap; accounts can run side by side)');
-exec.allowUnknownOption(true);
-exec.action((name: string, _opts: unknown, cmd: Command) => {
-  execCommand(name, cmd.args.slice(1));
-});
-program.command('homes').description('List isolated homes created by `agyw exec`').action(homesCommand);
-
-program.command('add <name>').description('Add a new profile').option('--clone <source>', 'Clone from source profile').action(addProfileCommand);
-program.command('list').description('List all profiles').action(listProfilesCommand);
-program.command('remove <name>').description('Remove a profile').action(removeProfileCommand);
+// Swap-mode commands, removed in 0.3.0: keep a clear message instead of "unknown command".
+for (const name of ['switch', 'add', 'init', 'status']) {
+  program
+    .command(`${name} [args...]`, { hidden: true })
+    .allowUnknownOption(true)
+    .action(removedCommand(name));
+}
 
 program.parse();

@@ -1,130 +1,66 @@
-# Using agyw on Linux
+# agyw on Linux
 
-`agyw` fully supports Linux and headless environments (like Docker containers and CI pipelines). 
+**Status: best effort, not verified.** The isolation in `agyw exec` was verified on
+macOS with `agy` 1.5.3. It has not been tested on Linux.
 
-This guide covers how to set up `agy` and `agyw` on Linux, the differences in how credentials are handled compared to macOS, and solutions for common headless authentication issues.
+## Why Linux is different
 
-## Understanding Credential Storage on Linux
+On macOS the isolated `HOME` has no `~/Library`, so the Keychain is unreachable and
+`agy` falls back to a token file inside the profile. On a Linux desktop, `agy` may
+talk to the FreeDesktop Secret Service (GNOME Keyring / `libsecret`) over D-Bus, and
+that keyring is not tied to `HOME`. If `agy` stored tokens there, every profile would
+share one slot and accounts would overwrite each other.
 
-On macOS, `agy` uses the native macOS Keychain to store your Google OAuth token securely. 
+To avoid that, `agyw exec` on non-macOS systems points `DBUS_SESSION_BUS_ADDRESS` at a
+path that does not exist, so the keyring is unreachable and `agy` should take the same
+"keyring failed, falling back to file storage" path it logs on macOS. `agyw exec`
+prints a warning on Linux to remind you this is unverified.
 
-On Linux desktop environments, `agy` attempts to use the FreeDesktop Secret Service API (`libsecret` / GNOME Keyring) by default. However, **in headless environments (like Docker, SSH, or minimal VMs), there is no D-Bus session or keyring daemon running**. When this happens, `agy` will silently fail to persist the token, forcing you to log in every time you restart the container or open a new terminal session.
+Headless environments (Docker, SSH, CI) normally have no keyring daemon at all, so
+this is the expected case there.
 
-### The Solution: File-based Storage
-
-`agy` has a built-in fallback: it can store the token in a standard encrypted file (`~/.gemini/antigravity-cli/antigravity-oauth-token`).
-
-To force `agy` to use this file-based storage and skip the keyring entirely, you must set an environment variable:
-
-```sh
-export GEMINI_FORCE_FILE_STORAGE=true
-```
-
-**`agyw` works by swapping this file between profiles.** For `agyw` to work correctly on Linux, this variable must be set.
-
----
-
-## Installation Guide
-
-### 1. Set the Environment Variable
-
-Add the variable to your shell profile so it's always active:
+## Check it yourself before relying on it
 
 ```sh
-echo 'export GEMINI_FORCE_FILE_STORAGE=true' >> ~/.bashrc
-source ~/.bashrc
+agyw exec test            # log in with account A
+# open another terminal
+agyw exec test2           # log in with account B
+agyw list                 # both should show LOGGED_IN yes
+ls ~/.agyw/homes/test/.gemini/antigravity-cli/antigravity-oauth-token
+ls ~/.agyw/homes/test2/.gemini/antigravity-cli/antigravity-oauth-token
 ```
 
-### 2. Install Antigravity CLI (`agy`)
+Then start `agyw exec test` again and confirm it is still account A. If the two
+accounts end up merged, do not use `agyw` on that machine and please open an issue.
 
-Google provides a native installation script for Linux. It installs a standalone compiled binary to `~/.local/bin/agy`.
+## Headless login
 
-```sh
-curl -fsSL https://antigravity.google/cli/install.sh | bash
-```
+`agy` detects a headless environment and uses a manual authorization-code flow:
+open the printed URL in a browser on another machine, sign in, and paste the code
+back into the terminal. Widen the terminal first; a hard-wrapped URL will not work.
 
-Make sure `~/.local/bin` is in your `$PATH`.
+## Docker
 
-### 3. Install agyw
-
-```sh
-npm install -g agyw
-```
-
-### 4. Initialize and Log In
-
-Run `agyw init` to set up the default profile, then log in:
-
-```sh
-agyw init
-agy auth login
-```
-
----
-
-## Headless Authentication (Docker / SSH)
-
-When you run `agy auth login` in an environment without a web browser (like a Docker container), `agy` will automatically detect the headless environment and use the **manual device-code flow**.
-
-You will see output similar to this:
-
-```
-Please visit this URL to authorize the Antigravity CLI:
-https://accounts.google.com/o/oauth2/auth?client_id=...
-
-Enter the authorization code:
-```
-
-1. Copy the URL.
-2. Paste it into a web browser on your host machine (or any machine with a browser).
-3. Complete the Google Sign-In process.
-4. Copy the authorization code shown in the browser.
-5. Paste the code back into your headless terminal and press Enter.
-
-Your token is now securely saved to the file, and `agyw` will manage it.
-
----
-
-## Docker Quickstart
-
-If you're using `agy` and `agyw` inside Docker, you'll want to mount the `~/.agyw` directory as a volume so your profiles and history persist between container restarts.
+Persist the profile store as a volume so logins survive restarts:
 
 ```dockerfile
 FROM debian:bookworm-slim
-
 RUN apt-get update && apt-get install -y curl ca-certificates bash nodejs npm
-
-# Create a non-root user
 RUN useradd -m -s /bin/bash dev
 USER dev
 WORKDIR /home/dev
-
-# Force file-based storage
-ENV GEMINI_FORCE_FILE_STORAGE=true
 ENV PATH="/home/dev/.local/bin:$PATH"
-
-# Install agy and agyw
 RUN curl -fsSL https://antigravity.google/cli/install.sh | bash
 RUN npm install -g agyw
-
 CMD ["/bin/bash"]
 ```
 
-To run the container and persist your profiles:
-
 ```sh
-docker run -it \
-  -v agyw_data:/home/dev/.agyw \
-  my-agy-image
+docker run -it -v agyw_data:/home/dev/.agyw my-agy-image
 ```
 
 ## Troubleshooting
 
-### Token is lost after container restart
-Ensure `GEMINI_FORCE_FILE_STORAGE=true` is set. Without it, `agy` might briefly hold the token in memory but fail to persist it to disk due to a missing keyring daemon.
-
-### `agy auth login` URL is broken
-In very narrow terminal windows, the CLI might hard-wrap the authorization URL with spaces, breaking the link. Widen your terminal window before running the command.
-
-### `dbus-launch` or `keyring` errors in logs
-If you see D-Bus or Secret Service errors in `~/.gemini/antigravity-cli/log/cli.log`, it means `GEMINI_FORCE_FILE_STORAGE=true` is not correctly set or exported in your environment.
+- **Asked to log in every time:** the token file is not being saved. Look for D-Bus or
+  keyring errors in `~/.agyw/homes/<name>/.gemini/antigravity-cli/log/`.
+- **Accounts merged:** see "Check it yourself" above.

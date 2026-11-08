@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile, lstat, readlink } from 'fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, lstat, readlink, readFile, symlink } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { IsolatedHome } from '../IsolatedHome.js';
@@ -106,5 +106,79 @@ describe('IsolatedHome.list()', () => {
       { name: 'alpha', loggedIn: true },
       { name: 'beta', loggedIn: false },
     ]);
+  });
+});
+
+describe('IsolatedHome.buildEnv() on non-macOS', () => {
+  it('makes the session bus unreachable so a shared keyring cannot be used', () => {
+    const env = iso.buildEnv('work', { DBUS_SESSION_BUS_ADDRESS: 'unix:path=/run/user/1000/bus' }, 'linux');
+    expect(env.DBUS_SESSION_BUS_ADDRESS).toContain('/nonexistent/');
+  });
+
+  it('leaves the D-Bus address alone on macOS', () => {
+    const env = iso.buildEnv('work', { DBUS_SESSION_BUS_ADDRESS: 'x' }, 'darwin');
+    expect(env.DBUS_SESSION_BUS_ADDRESS).toBe('x');
+  });
+});
+
+describe('IsolatedHome.remove()', () => {
+  it('deletes the home but never the real files its symlinks point to', async () => {
+    const home = await iso.prepare('work');
+    await writeFile(join(home, '.gemini', 'antigravity-cli', 'antigravity-oauth-token'), 't', 'utf-8');
+
+    await iso.remove('work');
+
+    expect(await exists(home)).toBe(false);
+    expect(await readFile(join(realHome, '.gitconfig'), 'utf-8')).toBe('[user]\n');
+    expect(await exists(join(realHome, '.ssh'))).toBe(true);
+  });
+
+  it('throws ERR_HOME_NOT_FOUND for an unknown profile', async () => {
+    await expect(iso.remove('ghost')).rejects.toMatchObject({ code: 'ERR_HOME_NOT_FOUND' });
+  });
+
+  it('rejects a path-traversal name before touching the disk', async () => {
+    await expect(iso.remove('../home')).rejects.toMatchObject({ code: 'ERR_INVALID_HOME_NAME' });
+    expect(await exists(realHome)).toBe(true);
+  });
+});
+
+describe('IsolatedHome.diagnose() / repair()', () => {
+  it('reports a healthy home as no issues', async () => {
+    await iso.prepare('work');
+    expect(await iso.diagnose('work')).toEqual([]);
+  });
+
+  it('flags a Library that would give agy back the global keychain', async () => {
+    const home = await iso.prepare('work');
+    await symlink(join(realHome, 'Library'), join(home, 'Library'));
+    expect((await iso.diagnose('work')).join('\n')).toContain('Library');
+  });
+
+  it('repair() drops a Library symlink but never a real Library directory', async () => {
+    const home = await iso.prepare('work');
+    await symlink(join(realHome, 'Library'), join(home, 'Library'));
+    await iso.repair('work');
+    expect(await exists(join(home, 'Library'))).toBe(false);
+    expect(await exists(join(realHome, 'Library', 'Keychains'))).toBe(true);
+
+    await mkdir(join(home, 'Library'), { recursive: true });
+    await iso.repair('work');
+    expect(await exists(join(home, 'Library'))).toBe(true);
+  });
+
+  it('flags .gemini that is a symlink to the real one', async () => {
+    const home = await iso.prepare('work');
+    await rm(join(home, '.gemini'), { recursive: true, force: true });
+    await symlink(join(realHome, '.gemini'), join(home, '.gemini'));
+    expect((await iso.diagnose('work')).join('\n')).toContain('.gemini is a symlink');
+  });
+
+  it('flags a shared item replaced by a real directory', async () => {
+    const home = await iso.prepare('work');
+    const skills = join(home, '.gemini', 'antigravity-cli', 'skills');
+    await rm(skills, { force: true });
+    await mkdir(skills);
+    expect((await iso.diagnose('work')).join('\n')).toContain('shared link');
   });
 });

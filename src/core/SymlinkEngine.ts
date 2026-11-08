@@ -6,48 +6,11 @@ export class SymlinkEngine {
     private antigravityDir: string,
     readonly sharedDir: string,
     readonly sharedItems: string[],
-    readonly releasedItems: string[] = [],
   ) {}
-
-  // Turn a leftover agyw-managed symlink for a no-longer-shared item back into
-  // a real copy, so agy owns it again. Real files/dirs and foreign symlinks are
-  // left untouched (never delete user data).
-  async release(): Promise<void> {
-    for (const item of this.releasedItems) {
-      const normalized = item.endsWith('/') ? item.slice(0, -1) : item;
-      const linkPath = join(this.antigravityDir, normalized);
-
-      let target: string;
-      try {
-        const st = await lstat(linkPath);
-        if (!st.isSymbolicLink()) continue;
-        target = await readlink(linkPath);
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'ENOENT') continue;
-        throw err;
-      }
-
-      // Only touch symlinks that point into the agyw shared dir.
-      if (target !== join(this.sharedDir, normalized)) continue;
-
-      const tmpPath = `${linkPath}.agyw-release-${Date.now()}`;
-      try {
-        await cp(target, tmpPath, { recursive: true });
-      } catch (err) {
-        // Dangling symlink: nothing to preserve, just drop it.
-        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-        await unlink(linkPath);
-        continue;
-      }
-      await unlink(linkPath);
-      await rename(tmpPath, linkPath);
-    }
-  }
 
   // Create or repair symlinks for all sharedItems.
   // antigravityDir/item → sharedDir/item (absolute path target)
   async repair(): Promise<void> {
-    await this.release();
     for (const item of this.sharedItems) {
       const isDir = item.endsWith('/');
       const normalizedItem = isDir ? item.slice(0, -1) : item;
