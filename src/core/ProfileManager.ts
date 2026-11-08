@@ -119,7 +119,7 @@ export class ProfileManager {
           created_at: new Date().toISOString(),
         },
       },
-      private: sharedItems.map(i => (i.endsWith('/') ? i.slice(0, -1) : i)),
+      private: this.fileSwapper.privateItems,
       shared: sharedItems,
     });
     await this.configStore.setActive('default');

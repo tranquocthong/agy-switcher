@@ -3,7 +3,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { ConfigStore } from '../core/ConfigStore.js';
 import { SymlinkEngine } from '../core/SymlinkEngine.js';
-import { ANTIGRAVITY_DIR, SHARED_ITEMS } from '../core/factory.js';
+import { ANTIGRAVITY_DIR, SHARED_ITEMS, RELEASED_ITEMS } from '../core/factory.js';
 import { handleError } from '../utils/cli-helpers.js';
 
 export async function doctorCommand(opts: { fix?: boolean } = {}): Promise<void> {
@@ -14,7 +14,7 @@ export async function doctorCommand(opts: { fix?: boolean } = {}): Promise<void>
 
     if (opts.fix) {
       const sharedDir = join(agywDir, 'shared');
-      const symlinkEngine = new SymlinkEngine(ANTIGRAVITY_DIR, sharedDir, SHARED_ITEMS);
+      const symlinkEngine = new SymlinkEngine(ANTIGRAVITY_DIR, sharedDir, SHARED_ITEMS, RELEASED_ITEMS);
       await symlinkEngine.repair();
       process.stdout.write('Fixed: shared symlinks repaired\n');
     }
