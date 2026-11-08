@@ -1,4 +1,4 @@
-import { mkdir, readdir, lstat, symlink } from 'fs/promises';
+import { mkdir, readdir, lstat, symlink, rm, unlink } from 'fs/promises';
 import { join } from 'path';
 import { SymlinkEngine } from './SymlinkEngine.js';
 import { AgywError } from '../utils/errors.js';
@@ -72,13 +72,72 @@ export class IsolatedHome {
     }
   }
 
-  buildEnv(name: string, base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
-    return {
+  buildEnv(
+    name: string,
+    base: NodeJS.ProcessEnv = process.env,
+    platform: NodeJS.Platform = process.platform,
+  ): NodeJS.ProcessEnv {
+    const env: NodeJS.ProcessEnv = {
       ...base,
       HOME: this.homeDir(name),
       AGYW_REAL_HOME: this.realHome,
       AGYW_PROFILE: name,
     };
+    if (platform !== 'darwin') {
+      // Best effort, NOT verified on Linux: on a desktop session libsecret would
+      // reach the one shared keyring regardless of HOME and re-couple every
+      // profile. Making the session bus unreachable pushes agy to its documented
+      // "keyring failed, falling back to file storage" path instead.
+      env.DBUS_SESSION_BUS_ADDRESS = 'unix:path=/nonexistent/agyw-no-keyring';
+    }
+    return env;
+  }
+
+  async exists(name: string): Promise<boolean> {
+    this.assertValidName(name);
+    return lstat(this.homeDir(name)).then(s => s.isDirectory(), () => false);
+  }
+
+  // Delete an isolated home (login token, history, state). Symlinks inside it
+  // (dotfile passthrough, shared items) are removed as links, never followed.
+  async remove(name: string): Promise<void> {
+    if (!(await this.exists(name))) {
+      throw new AgywError('ERR_HOME_NOT_FOUND', { name });
+    }
+    await rm(this.homeDir(name), { recursive: true, force: true });
+  }
+
+  // Health report for one isolated home. Empty array = healthy.
+  async diagnose(name: string): Promise<string[]> {
+    const home = this.homeDir(name);
+    const issues: string[] = [];
+
+    // Library inside the isolated HOME would give agy back the one global
+    // keychain slot and silently re-couple every profile.
+    if (await lstat(join(home, 'Library')).then(() => true, () => false)) {
+      issues.push('Library exists in the isolated HOME (agy may use the global keychain)');
+    }
+
+    const gem = await lstat(join(home, '.gemini')).catch(() => null);
+    if (!gem) issues.push('.gemini is missing');
+    else if (gem.isSymbolicLink()) issues.push('.gemini is a symlink to the real one (state is not isolated)');
+
+    const health = await new SymlinkEngine(
+      join(home, '.gemini', 'antigravity-cli'),
+      join(this.agywDir, 'shared'),
+      this.sharedItems,
+    ).checkHealth();
+    if (health.broken > 0) issues.push(`${health.broken} shared link(s) broken or replaced by real files`);
+    return issues;
+  }
+
+  // Repair what diagnose() reports: re-create shared links and passthrough, and
+  // drop a Library *symlink* (a real Library directory is never deleted).
+  async repair(name: string): Promise<void> {
+    const lib = join(this.homeDir(name), 'Library');
+    const st = await lstat(lib).catch(() => null);
+    if (st?.isSymbolicLink()) await unlink(lib);
+    await this.prepare(name);
   }
 
   // Names of existing isolated homes, with whether a login token is present.
