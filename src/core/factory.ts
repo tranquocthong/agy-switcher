@@ -31,6 +31,13 @@ const SHARED_ITEMS = [
   'skills/',
   'hooks/',
   'cache/',
+];
+
+// Items agyw used to share via symlink but must NOT manage: agy rewrites them
+// itself on every update (builtin skills, keybindings schema), so a shared
+// symlink silently pins agy to a stale copy. repair() materializes any leftover
+// agyw symlink for these into a real copy and then leaves them alone.
+const RELEASED_ITEMS = [
   'builtin/',
   'keybindings.json',
 ];
@@ -43,7 +50,7 @@ export function createProfileManager(agywDir = join(homedir(), '.agyw')): Profil
 
   const configStore = new ConfigStore(agywDir);
   const fileSwapper = new FileSwapper(ANTIGRAVITY_DIR, profilesDir, PRIVATE_ITEMS);
-  const symlinkEngine = new SymlinkEngine(ANTIGRAVITY_DIR, sharedDir, SHARED_ITEMS);
+  const symlinkEngine = new SymlinkEngine(ANTIGRAVITY_DIR, sharedDir, SHARED_ITEMS, RELEASED_ITEMS);
   const lockManager = new LockManager(agywDir);
   const historyTracker = new HistoryTracker(configStore);
   const credentialStore: CredentialStore =
@@ -55,4 +62,4 @@ export function createProfileManager(agywDir = join(homedir(), '.agyw')): Profil
   return new ProfileManager(configStore, fileSwapper, symlinkEngine, lockManager, historyTracker, credentialStore, processGuard);
 }
 
-export { ANTIGRAVITY_DIR, PRIVATE_ITEMS, SHARED_ITEMS };
+export { ANTIGRAVITY_DIR, PRIVATE_ITEMS, SHARED_ITEMS, RELEASED_ITEMS };

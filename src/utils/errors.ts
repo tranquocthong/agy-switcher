@@ -9,7 +9,8 @@ export type ErrorCode =
   | 'ERR_ANTIGRAVITY_NOT_INIT'
   | 'ERR_CONCURRENT_SWITCH'
   | 'ERR_ANTIGRAVITY_RUNNING'
-  | 'ERR_ENV_WRITE_FAILED';
+  | 'ERR_ENV_WRITE_FAILED'
+  | 'ERR_INVALID_HOME_NAME';
 
 const ERROR_MESSAGES: Record<ErrorCode, string> = {
   ERR_PROFILE_NOT_FOUND: "Profile '{name}' không tồn tại. Chạy `agyw profile list` để xem danh sách.",
@@ -23,6 +24,7 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
   ERR_CONCURRENT_SWITCH: "Đang có switch operation khác đang chạy. Thử lại sau. Lock tự xóa sau 30 giây.",
   ERR_ANTIGRAVITY_RUNNING: "Antigravity/agy đang chạy ({detail}). Tiến trình này giữ token trong RAM và ghi đè ngược lại keychain, làm switch vô hiệu và lẫn token giữa các profile. Hãy thoát hẳn Antigravity (Cmd+Q) và đóng mọi tiến trình `agy`, rồi switch lại.",
   ERR_ENV_WRITE_FAILED: "Không thể ghi vào `~/.gemini/antigravity-cli/`: {detail}. Kiểm tra quyền truy cập thư mục.",
+  ERR_INVALID_HOME_NAME: "Tên '{name}' không hợp lệ. Chỉ dùng chữ, số, '-' và '_' (tối đa 32 ký tự, bắt đầu bằng chữ hoặc số).",
 };
 
 export class AgywError extends Error {

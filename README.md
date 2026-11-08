@@ -35,10 +35,40 @@ agyw doctor            # Diagnose symlink and config issues
 
 ```sh
 agyw add work          # Creates "work" profile, switches to it, clears auth
-agy auth login         # Log in with your work Google account
+agy                    # Log in with your work Google account inside agy (agy 1.5.x no longer lists `agy auth login`)
 # ... use agy as work account ...
 agyw switch default    # Switch back — restores your personal account automatically
 ```
+
+## Isolated mode: `agyw exec` (no switching, accounts side by side)
+
+`agyw exec` runs `agy` with `HOME` pointed at a per-profile directory
+(`~/.agyw/homes/<name>/`), the same idea as `aimux use`. Nothing is swapped in
+`~/.gemini` or the global Keychain slot, so you can run several accounts at the
+same time and there is no need to quit `agy` first.
+
+```sh
+agyw exec work          # first run: log in inside agy with the work account
+agyw exec work -p "hi"  # extra arguments go straight to agy
+agyw exec personal      # a second account, can run in another terminal at once
+agyw homes              # list isolated homes and whether each is logged in
+```
+
+How it works and what to know:
+
+- With no `~/Library` inside the isolated `HOME`, the macOS Keychain is
+  unreachable, so `agy` falls back to file token storage inside that home
+  (`antigravity-oauth-token`). Verified on `agy` 1.5.3: the first login logs
+  `Keyring SaveToken timed out after 5s, falling back to file storage` (a one-off
+  ~5s wait), later runs load the token from the file without delay.
+- Your dotfiles (`.gitconfig`, `.ssh`, `.config`, ...) are symlinked into the
+  isolated `HOME` so `git`, `ssh`, `node` keep working. `Library` is deliberately
+  NOT passed through. Side effect: tools that keep credentials in the Keychain
+  (for example `git` with `osxkeychain`, or `gh` without `GH_TOKEN`) cannot see
+  them from inside an isolated session.
+- Only `skills/`, `hooks/` and `knowledge/` are shared across isolated homes.
+  Conversations and cache stay per account.
+- `agyw exec` is independent of `switch` / `run`; the old swap mode keeps working.
 
 ## Important: quit Antigravity before switching
 
@@ -53,7 +83,7 @@ any `agy` sessions before switching. On Linux, close any active `agy` sessions.
 ## How it works
 
 - **Private files** (`installation_id`, `antigravity-oauth-token`, `settings.json`, `updater`, etc.) are copied per-profile into `~/.agyw/profiles/<name>/` and swapped into `~/.gemini/antigravity-cli/` on each switch.
-- **Shared files** (`conversations/`, `skills/`, `hooks/`, etc.) are symlinked to a common `~/.agyw/shared/` directory so all profiles share the same history and config.
+- **Shared files** (`conversations/`, `brain/`, `skills/`, `hooks/`, etc.) are symlinked to a common `~/.agyw/shared/` directory so all profiles share the same history and config. Files `agy` rewrites itself on update (`builtin/`, `keybindings.json`) are intentionally left alone; if an older agyw symlinked them, the next `agyw switch` / `doctor --fix` turns them back into real copies.
 - **Auth tokens** are saved and restored per-profile: macOS uses the native Keychain plus the `antigravity-oauth-token` file; Linux uses the file only. New profiles start with a clean state so `agy auth login` prompts for a fresh account.
 
 ## Requirements
@@ -67,6 +97,12 @@ any `agy` sessions before switching. On Linux, close any active `agy` sessions.
 > `GEMINI_FORCE_FILE_STORAGE=true` so tokens are written to file.
 
 ## Linux Setup
+
+> **Unverified:** the `GEMINI_FORCE_FILE_STORAGE` variable below comes from the
+> Gemini CLI. As of `agy` 1.5.3 the binary contains no reference to it, so it may
+> have no effect on `agy`. Check that `antigravity-oauth-token` actually appears in
+> `~/.gemini/antigravity-cli/` after `agy auth login` before relying on Linux
+> profile switching.
 
 On Linux, `agy` stores OAuth tokens in `~/.gemini/antigravity-cli/antigravity-oauth-token`
 when `GEMINI_FORCE_FILE_STORAGE=true` is set. Without this, `agy` tries to use

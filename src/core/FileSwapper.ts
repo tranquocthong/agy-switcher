@@ -5,7 +5,7 @@ export class FileSwapper {
   constructor(
     private antigravityDir: string,
     private profilesDir: string,
-    private privateItems: string[],
+    readonly privateItems: string[],
   ) {}
 
   async save(profileName: string): Promise<void> {

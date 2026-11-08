@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { initCommand } from '../commands/init.js';
 import { switchCommand } from '../commands/switch.js';
 import { runCommand } from '../commands/run.js';
+import { execCommand, homesCommand } from '../commands/exec.js';
 import { statusCommand } from '../commands/status.js';
 import { doctorCommand } from '../commands/doctor.js';
 import { addProfileCommand } from '../commands/profile/add.js';
@@ -38,6 +39,15 @@ run.action((name: string, _opts: unknown, cmd: Command) => {
   const extra = cmd.args.slice(1);
   runCommand(name, extra);
 });
+
+const exec = program
+  .command('exec <name>')
+  .description('Run agy in an isolated per-profile HOME (no global swap; accounts can run side by side)');
+exec.allowUnknownOption(true);
+exec.action((name: string, _opts: unknown, cmd: Command) => {
+  execCommand(name, cmd.args.slice(1));
+});
+program.command('homes').description('List isolated homes created by `agyw exec`').action(homesCommand);
 
 program.command('add <name>').description('Add a new profile').option('--clone <source>', 'Clone from source profile').action(addProfileCommand);
 program.command('list').description('List all profiles').action(listProfilesCommand);

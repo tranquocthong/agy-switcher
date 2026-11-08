@@ -45,3 +45,12 @@ describe('factory', () => {
     });
   });
 });
+
+describe('shared / released item lists', () => {
+  it('does not share files agy rewrites on update', async () => {
+    const { SHARED_ITEMS, RELEASED_ITEMS } = await import('../factory.js');
+    expect(SHARED_ITEMS).not.toContain('builtin/');
+    expect(SHARED_ITEMS).not.toContain('keybindings.json');
+    expect(RELEASED_ITEMS).toEqual(expect.arrayContaining(['builtin/', 'keybindings.json']));
+  });
+});
